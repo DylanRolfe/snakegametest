@@ -135,11 +135,67 @@ class Snake {
 }
 
 // ============================================================
+// Enemy Snake (AI-controlled, random movement, wraps around)
+// ============================================================
+const DIR_LIST = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+
+class EnemySnake {
+  constructor() {
+    this.body = [];
+    this.direction = DIR.RIGHT;
+    this.length = 5;
+  }
+
+  /** Spawn in a corner away from the player snake. */
+  reset() {
+    const start = { x: 3, y: 3 };
+    this.direction = DIR.RIGHT;
+    this.body = [];
+    for (let i = 0; i < this.length; i++) {
+      this.body.push({ x: start.x - i, y: start.y });
+    }
+  }
+
+  update() {
+    // Randomly change direction ~25% of the time (no 180° turns)
+    if (Math.random() < 0.25) {
+      const candidates = DIR_LIST.filter(
+        d => !(d.x + this.direction.x === 0 && d.y + this.direction.y === 0)
+      );
+      this.direction = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    const head = {
+      x: (this.body[0].x + this.direction.x + GRID_SIZE) % GRID_SIZE,
+      y: (this.body[0].y + this.direction.y + GRID_SIZE) % GRID_SIZE,
+    };
+    this.body.unshift(head);
+    while (this.body.length > this.length) this.body.pop();
+  }
+
+  draw() {
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 8;
+    this.body.forEach((seg, i) => {
+      ctx.fillStyle = i === 0 ? '#ffaa00' : '#ff6600';
+      ctx.fillRect(
+        seg.x * TILE + 1,
+        seg.y * TILE + 1,
+        TILE - 2,
+        TILE - 2
+      );
+    });
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ============================================================
 // Game
 // ============================================================
 class Game {
   constructor() {
     this.snake = new Snake();
+    this.enemy = new EnemySnake();
     this.food  = new Food();
     this.score = 0;
     this.highScore = parseInt(localStorage.getItem('snakeHighScore')) || 0;
@@ -170,9 +226,10 @@ class Game {
   start() {
     // Reset state
     this.snake.reset();
+    this.enemy.reset();
     this.score = 0;
     this.updateScoreUI();
-    this.food.spawn(this.snake.body);
+    this.food.spawn([...this.snake.body, ...this.enemy.body]);
 
     // Hide overlays
     startScreen.classList.add('hidden');
@@ -186,6 +243,7 @@ class Game {
 
   tick() {
     this.snake.update();
+    this.enemy.update();
 
     // Collision checks
     if (this.snake.collidesWall() || this.snake.collidesSelf()) {
@@ -193,13 +251,19 @@ class Game {
       return;
     }
 
-    // Eating food
+    // Check if player hit the enemy snake
     const head = this.snake.body[0];
+    if (this.enemy.body.some(seg => seg.x === head.x && seg.y === head.y)) {
+      this.gameOver();
+      return;
+    }
+
+    // Eating food
     if (head.x === this.food.position.x && head.y === this.food.position.y) {
       this.snake.grow();
       this.score += 10;
       this.updateScoreUI();
-      this.food.spawn(this.snake.body);
+      this.food.spawn([...this.snake.body, ...this.enemy.body]);
     }
 
     this.render();
@@ -223,6 +287,7 @@ class Game {
     }
 
     this.food.draw();
+    this.enemy.draw();
     this.snake.draw();
   }
 
