@@ -14,17 +14,27 @@
     <!-- HUD -->
     <div id="hud">
       <span id="score-display">SCORE: 0</span>
+      <span id="timer-display" class="hidden"></span>
       <span id="highscore-display">HI: 0</span>
     </div>
 
     <!-- Canvas -->
     <canvas id="game-canvas" width="400" height="400"></canvas>
 
-    <!-- Start Screen Overlay -->
+    <!-- Start / Mode Select Screen -->
     <div id="start-screen" class="overlay">
       <h1>SNAKE</h1>
-      <p>Use Arrow Keys or WASD</p>
-      <button id="start-btn">START GAME</button>
+      <p>Select a Mode</p>
+      <ul id="mode-menu">
+        <li class="mode-item selected" data-mode="classic">1. Classic</li>
+        <li class="mode-item" data-mode="portal">2. Portal</li>
+        <li class="mode-item" data-mode="speedster">3. Speedster</li>
+        <li class="mode-item" data-mode="maze">4. Maze</li>
+        <li class="mode-item" data-mode="timeattack">5. Time Attack</li>
+        <li class="mode-item" data-mode="poison">6. Poison</li>
+        <li class="mode-item" data-mode="twin">7. Twin</li>
+      </ul>
+      <p class="hint">Arrow Keys to navigate &middot; Enter to select &middot; R to restart</p>
     </div>
 
     <!-- Game Over Screen Overlay -->
@@ -32,6 +42,7 @@
       <h1>GAME OVER</h1>
       <p id="final-score">SCORE: 0</p>
       <button id="restart-btn">PLAY AGAIN</button>
+      <button id="menu-btn">MAIN MENU</button>
     </div>
   </div>
 

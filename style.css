@@ -34,6 +34,15 @@ body {
   text-shadow: 0 0 8px #39ff14;
 }
 
+#timer-display {
+  color: #ff0044;
+  text-shadow: 0 0 8px #ff0044;
+}
+
+.hidden {
+  display: none !important;
+}
+
 /* Canvas */
 #game-canvas {
   border: 3px solid #39ff14;
@@ -55,11 +64,7 @@ body {
   align-items: center;
   background-color: rgba(0, 0, 0, 0.85);
   z-index: 10;
-  gap: 24px;
-}
-
-.overlay.hidden {
-  display: none;
+  gap: 16px;
 }
 
 .overlay h1 {
@@ -71,6 +76,12 @@ body {
 .overlay p {
   font-size: 10px;
   color: #aaaaaa;
+}
+
+.overlay p.hint {
+  font-size: 7px;
+  color: #666666;
+  margin-top: 8px;
 }
 
 .overlay button {
@@ -88,4 +99,33 @@ body {
   background-color: #39ff14;
   color: #000000;
   box-shadow: 0 0 20px #39ff14;
+}
+
+/* Mode Menu */
+#mode-menu {
+  list-style: none;
+  text-align: left;
+  width: 260px;
+}
+
+.mode-item {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 8px 12px;
+  color: #888888;
+  cursor: pointer;
+  transition: color 0.15s, text-shadow 0.15s;
+}
+
+.mode-item:hover {
+  color: #39ff14;
+}
+
+.mode-item.selected {
+  color: #39ff14;
+  text-shadow: 0 0 10px #39ff14;
+}
+
+.mode-item.selected::before {
+  content: '> ';
 }

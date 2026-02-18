@@ -1,0 +1,53 @@
+# AI Developer Specification: Snake Game Modes & Features
+
+The user wants to expand the current Snake game with a mode selection screen, 7 unique game modes, and improved controls.
+
+## 1. Feature: Game Mode Selection
+- **Start Screen Update:**
+  - Instead of immediately starting, the Start Screen should present a list of 7 Game Modes.
+  - User can navigate the menu using Arrow Keys and select with Enter, or click buttons.
+- **Architecture:**
+  - Scale the `Game` class to handle different rule sets or configuration objects for each mode.
+
+## 2. Feature: Instant Restart
+- **Controls:**
+  - Pressing the **'R'** key at any point (during game or game over) should immediately reset the game state and restart the CURRENT mode.
+
+## 3. The 7 Game Modes
+
+1.  **Classic Mode**
+    - The standard experience. Normal speed, walls kill you.
+
+2.  **Portal Mode (No Walls)**
+    - **Description:** Walls are wrap-around. Going through the right wall makes you appear on the left, top to bottom, etc.
+    - **Mechanic:** Remove wall collision checks.
+
+3.  **Speedster Mode**
+    - **Description:** Adrenaline rush.
+    - **Mechanic:** The game start speed is normal, but **every time** you eat food, the game speed increases by 5% (interval decreases). It gets progressively harder very quickly.
+
+4.  **Maze Mode**
+    - **Description:** Static obstacles spawn on the grid.
+    - **Mechanic:** When the game starts, randomly place 5-10 "Wall" blocks on the grid that kill the snake on impact. Ensure they don't trap the snake immediately.
+
+5.  **Time Attack**
+    - **Description:** Race against the clock.
+    - **Mechanic:** You start with 10 seconds. Eating food adds +3 seconds. If the timer hits 0, Game Over. Score is based on food eaten.
+
+6.  **Poison Mode**
+    - **Description:** Watch what you eat.
+    - **Mechanic:** Spawn two types of food:
+      - **Food (Red):** Normal growth and score.
+      - **Poison (Purple/Green):** Spawns occasionally. If eaten, it reduces your score and (optionally) reduces snake length or kills you instantly.
+      - *Recommendation:* Poison kills you instantly for higher stakes.
+
+7.  **Twin Mode (The Shadow)**
+    - **Description:** Double trouble.
+    - **Mechanic:** There is a "Shadow Snake" that mirrors your movements from the opposite side of the board (rotated 180 degrees). If you crash into the Shadow Snake, Game Over. The Shadow Snake does not eat food, it just mimics you.
+
+## Implementation Instructions for Developer
+
+- Modify `index.html` to include the menu UI.
+- Update `script.js` to encompass the `GameMode` logic.
+- Use a `switch` statement or `Strategy Pattern` to handle the different update rules (e.g., wrap-around vs wall-death).
+- Ensure the **'R'** key listener is global.
