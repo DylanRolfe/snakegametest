@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Snake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- HUD -->
+    <div id="hud">
+      <span id="score-display">SCORE: 0</span>
+      <span id="highscore-display">HI: 0</span>
+    </div>
+
+    <!-- Canvas -->
+    <canvas id="game-canvas" width="400" height="400"></canvas>
+
+    <!-- Start Screen Overlay -->
+    <div id="start-screen" class="overlay">
+      <h1>SNAKE</h1>
+      <p>Use Arrow Keys or WASD</p>
+      <button id="start-btn">START GAME</button>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div id="gameover-screen" class="overlay hidden">
+      <h1>GAME OVER</h1>
+      <p id="final-score">SCORE: 0</p>
+      <button id="restart-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+# AI Developer Specification: Retro Snake Game
+
+This document outlines the requirements and technical specifications for implementing a classic Snake game using vanilla web technologies. Please implement the game according to these guidelines.
+
+## Project Overview
+**Goal:** Create a polished, responsive, and visually appealing implementation of the classic Snake arcade game.
+**Tech Stack:** HTML5, CSS3, Vanilla JavaScript (No external frameworks or libraries).
+
+## Core Requirements
+
+### 1. Game Mechanics
+- **Grid System:** The game operates on a fixed grid (e.g., 20x20 tiles).
+- **Movement:**
+  - The snake moves continuously in the current direction.
+  - Controls: Arrow keys or WASD to change direction.
+  - Prevent 180-degree turns (e.g., cannot go immediately Left if moving Right).
+- **Growth:**
+  - When the snake's head occupies the same tile as food, the snake grows by one segment.
+  - Score increases.
+  - New food spawns at a random valid location (not on the snake body).
+- **Game Over Conditions:**
+  - Head collides with the wall (game boundary).
+  - Head collides with any part of the snake's own body.
+- **Game Loop:**
+  - Updates occur at a fixed interval (e.g., every 100ms) to create the retro "step" feel.
+
+### 2. User Interface (UI)
+- **Start Screen:** Overlay showing the title and a "Start Game" button.
+- **HUD (Heads-Up Display):**
+  - Current Score.
+  - High Score (persisted in `localStorage`).
+- **Game Over Screen:**
+  - Overlay displayed upon death.
+  - Shows Final Score.
+  - "Play Again" button to reset the game state.
+
+### 3. Visual Design (CSS)
+- **Theme:** Dark, retro arcade aesthetic.
+  - Background: Dark grey or black (`#2c3e50`, `#000000`).
+  - Colors: High contrast neon (Green snake, Red food).
+- **Responsiveness:**
+  - The game container should remain centered on the screen.
+  - The canvas should have a fixed logical resolution (e.g., 400x400) but scale visually if needed.
+- **Polish:**
+  - Subtle shadows or glows for the snake/food.
+  - Retro pixel font (e.g., "Press Start 2P" from Google Fonts).
+
+## File Structure & Implementation Details
+
+You should implement the solution using the following three files.
+
+### 1. `index.html`
+- Contains the main game container.
+- Includes the `<canvas>` element.
+- Includes UI overlays (Start Screen, Game Over Screen) within the container.
+- Links `style.css` and `script.js`.
+
+### 2. `style.css`
+- Resets default browser margins.
+- Uses Flexbox to center the game on the viewport.
+- Styles the canvas with a distinct border.
+- Styles the UI overlays to appear on top of the canvas (using absolute positioning).
+- Implements the retro color palette.
+
+### 3. `script.js`
+- **Classes/Objects:**
+  - `Game`: Manages the loop, score, and state transitions.
+  - `Snake`: Manages the body array, movement, and growth logic.
+  - `Food`: Manages position and random spawning.
+- **Logic:**
+  - Use `requestAnimationFrame` or `setInterval` for the game loop.
+  - Handle input events (`keydown`).
+  - Implement collision detection helper functions.
+  - LocalStorage logic for high scores.
+
+## Implementation Steps for Developer
+
+1.  **Setup HTML:** Create the skeleton structure with canvas and UI elements.
+2.  **Style:** Apply CSS to center the game and style the overlays (initially hidden or shown based on state).
+3.  **Core Engine:** Write the JavaScript to render a static grid and snake.
+4.  **Movement:** Implement the update loop to move the snake array.
+5.  **Input:** Connect keyboard listeners to direction changes.
+6.  **Gameplay:** Add food spawning, eating logic, and collision detection.
+7.  **Polish:** Add scoring, high score persistence, and game states (Start/Game Over).
+
+---
+
+**Note to Developer:** Please ensure the code is clean, well-commented, and assumes no build step is required (pure vanilla JS).
