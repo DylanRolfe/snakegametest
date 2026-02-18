@@ -1,0 +1,52 @@
+# AI Developer Specification: Boss Fight Mode (Undertale Style)
+
+The user wants to add an 8th "Boss Fight" mode to the Snake game. This mode shifts the gameplay from pure survival to an action-dodging boss battle inspired by Undertale.
+
+## Core Concept
+In **Boss Fight Mode**, the goal is not just to survive, but to defeat a large Boss Entity by eating "Ammo Food" while dodging dynamic attack patterns.
+
+## 1. The Boss Entity
+- **Appearance:** A large 3x3 or 4x4 red square (or sprite) located at the **top center** of the grid.
+- **Health:** The Boss has a health bar (e.g., 5 HP initially).
+- **Behavior:** The Boss is mostly stationary but can "shake" when hit or preparing an attack.
+
+## 2. Player Mechanics
+- **Movement:** Standard Snake movement.
+- **Damage Dealing:** Standard food is replaced by **"Missiles"** or **"Energy Orbs"**.
+- **Combat Loop:**
+  1.  An "Orb" spawns on the grid.
+  2.  Player eats the Orb -> Boss takes 1 Damage.
+  3.  Boss flashes white/red indicating damage.
+  4.  Boss Health decreases.
+  5.  If Boss HP = 0, You Win.
+
+## 3. Boss Attack Patterns (The "Undertale" Element)
+The Boss cycles through attack phases. The snake must dodge these hazards. If the snake head OR body hits a hazard, Game Over.
+
+### Attack A: The rain (Bullet Hell)
+- **Visual:** Small white projectiles fall from the top of the screen to the bottom.
+- **Pattern:** Random x-positions, falling at a steady speed. Gaps are provided for the snake to weave through.
+
+### Attack B: Laser Lines
+- **Visual:** Warning indicators flash on random rows or columns (e.g., yellow highlights).
+- **Action:** After 1 second, a solid beam fires across those rows/columns. instant death if inside.
+
+### Attack C: The Chaser
+- **Visual:** A "Targeting Reticle" follows the snake's head for 3 seconds, then locks in place and explodes into a 3x3 damage zone.
+
+## 4. Implementation Details
+
+- **Class Structure:**
+  - Create a `Boss` class to manage HP, State, and rendering.
+  - Create a `Projectiles` manager to handle array of bullets/hazards.
+- **Game Loop Adjustment:**
+  - In this mode, `update()` must also update projectile positions and check collisions between `Snake` and `Projectiles`.
+- **Win State:**
+  - Show a "VICTORY" screen instead of just Game Over.
+
+## Developer Checklist
+- [ ] Add "Boss Rush" or "Boss Fight" to the Mode Selection Menu.
+- [ ] Implement `Boss` class (rendering the big square).
+- [ ] Implement `Projectile` system (simple x/y objects that move per tick).
+- [ ] Implement Attack Patterns (state machine or random cycle).
+- [ ] Add "Victory" screen logic.

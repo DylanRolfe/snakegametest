@@ -73,6 +73,11 @@ body {
   text-shadow: 0 0 20px #39ff14, 0 0 40px #39ff14;
 }
 
+.overlay h1.victory-title {
+  color: #ffdd00;
+  text-shadow: 0 0 20px #ffdd00, 0 0 40px #ffaa00;
+}
+
 .overlay p {
   font-size: 10px;
   color: #aaaaaa;

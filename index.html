@@ -33,6 +33,7 @@
         <li class="mode-item" data-mode="timeattack">5. Time Attack</li>
         <li class="mode-item" data-mode="poison">6. Poison</li>
         <li class="mode-item" data-mode="twin">7. Twin</li>
+        <li class="mode-item" data-mode="bossfight">8. Boss Fight</li>
       </ul>
       <p class="hint">Arrow Keys to navigate &middot; Enter to select &middot; R to restart</p>
     </div>
@@ -43,6 +44,14 @@
       <p id="final-score">SCORE: 0</p>
       <button id="restart-btn">PLAY AGAIN</button>
       <button id="menu-btn">MAIN MENU</button>
+    </div>
+
+    <!-- Victory Screen Overlay -->
+    <div id="victory-screen" class="overlay hidden">
+      <h1 class="victory-title">VICTORY</h1>
+      <p>You defeated the Boss!</p>
+      <button id="victory-restart-btn">PLAY AGAIN</button>
+      <button id="victory-menu-btn">MAIN MENU</button>
     </div>
   </div>
 

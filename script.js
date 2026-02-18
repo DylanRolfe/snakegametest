@@ -1,5 +1,5 @@
 // ============================================================
-// Retro Snake Game – Vanilla JS – 7 Game Modes
+// Retro Snake Game – Vanilla JS – 8 Game Modes
 // ============================================================
 
 const canvas = document.getElementById('game-canvas');
@@ -25,9 +25,12 @@ const highscoreDisplay = document.getElementById('highscore-display');
 const timerDisplay     = document.getElementById('timer-display');
 const startScreen      = document.getElementById('start-screen');
 const gameoverScreen   = document.getElementById('gameover-screen');
+const victoryScreen    = document.getElementById('victory-screen');
 const finalScoreText   = document.getElementById('final-score');
 const restartBtn       = document.getElementById('restart-btn');
 const menuBtn          = document.getElementById('menu-btn');
+const victoryRestartBtn = document.getElementById('victory-restart-btn');
+const victoryMenuBtn   = document.getElementById('victory-menu-btn');
 const modeMenu         = document.getElementById('mode-menu');
 const modeItems        = Array.from(modeMenu.querySelectorAll('.mode-item'));
 
@@ -135,6 +138,13 @@ class Snake {
     return otherBody.some(seg => seg.x === h.x && seg.y === h.y);
   }
 
+  /** Check if ANY segment of the snake overlaps a pixel-based rect (in grid coords). */
+  collidesRect(rx, ry, rw, rh) {
+    return this.body.some(seg =>
+      seg.x >= rx && seg.x < rx + rw && seg.y >= ry && seg.y < ry + rh
+    );
+  }
+
   draw(headColor = '#73ff5e', bodyColor = '#39ff14', glowColor = '#39ff14') {
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = 8;
@@ -218,6 +228,282 @@ class ShadowSnake {
 }
 
 // ============================================================
+// Boss
+// ============================================================
+class Boss {
+  constructor() {
+    this.maxHp = 5;
+    this.hp = this.maxHp;
+    this.size = 4;                       // 4x4 grid tiles
+    this.x = Math.floor((GRID_SIZE - this.size) / 2); // top-center
+    this.y = 0;
+    this.flashTimer = 0;                 // ticks remaining for damage flash
+    this.shakeOffset = 0;
+  }
+
+  reset() {
+    this.hp = this.maxHp;
+    this.flashTimer = 0;
+    this.shakeOffset = 0;
+  }
+
+  takeDamage() {
+    this.hp--;
+    this.flashTimer = 6; // flash for 6 ticks
+  }
+
+  /** Returns array of grid positions the boss occupies. */
+  getOccupied() {
+    const tiles = [];
+    for (let dx = 0; dx < this.size; dx++) {
+      for (let dy = 0; dy < this.size; dy++) {
+        tiles.push({ x: this.x + dx, y: this.y + dy });
+      }
+    }
+    return tiles;
+  }
+
+  update() {
+    if (this.flashTimer > 0) {
+      this.flashTimer--;
+      this.shakeOffset = (this.flashTimer % 2 === 0) ? 2 : -2;
+    } else {
+      this.shakeOffset = 0;
+    }
+  }
+
+  draw() {
+    const px = this.x * TILE + this.shakeOffset;
+    const py = this.y * TILE;
+    const pw = this.size * TILE;
+    const ph = this.size * TILE;
+
+    // Body
+    const bodyColor = this.flashTimer > 0 ? '#ffffff' : '#ff2244';
+    ctx.shadowColor = '#ff2244';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+    ctx.shadowBlur = 0;
+
+    // Eyes
+    const eyeSize = TILE * 0.6;
+    const eyeY = py + TILE * 1.2;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px + TILE * 0.8, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(px + TILE * 2.6, eyeY, eyeSize, eyeSize);
+
+    // Pupils
+    const pupilSize = TILE * 0.3;
+    ctx.fillStyle = '#ff0044';
+    ctx.fillRect(px + TILE * 0.95, eyeY + eyeSize * 0.35, pupilSize, pupilSize);
+    ctx.fillRect(px + TILE * 2.75, eyeY + eyeSize * 0.35, pupilSize, pupilSize);
+
+    // HP bar background
+    const barX = px;
+    const barY = py + ph + 4;
+    const barW = pw;
+    const barH = 6;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // HP bar fill
+    const hpRatio = Math.max(0, this.hp / this.maxHp);
+    ctx.fillStyle = hpRatio > 0.5 ? '#ff2244' : '#ff8800';
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 6;
+    ctx.fillRect(barX, barY, barW * hpRatio, barH);
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ============================================================
+// Projectile Manager (Boss attacks)
+// ============================================================
+class ProjectileManager {
+  constructor() {
+    this.bullets = [];     // Attack A: rain
+    this.lasers = [];      // Attack B: laser lines
+    this.chasers = [];     // Attack C: targeting reticles
+  }
+
+  reset() {
+    this.bullets = [];
+    this.lasers = [];
+    this.chasers = [];
+  }
+
+  // ── Attack A: Rain ──────────────────────────────────────
+  spawnRain() {
+    // Spawn 3-5 bullets at random x across the top
+    const count = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      this.bullets.push({
+        x: Math.floor(Math.random() * GRID_SIZE),
+        y: 0,
+      });
+    }
+  }
+
+  updateBullets() {
+    this.bullets.forEach(b => b.y += 1);
+    this.bullets = this.bullets.filter(b => b.y < GRID_SIZE);
+  }
+
+  // ── Attack B: Laser Lines ──────────────────────────────
+  spawnLaser() {
+    // Pick a random row or column
+    const isRow = Math.random() < 0.5;
+    const index = Math.floor(Math.random() * GRID_SIZE);
+    this.lasers.push({
+      isRow,
+      index,
+      warningTicks: 10,  // 10 ticks (~1s) of warning
+      fireTicks: 3,      // laser stays active 3 ticks
+    });
+  }
+
+  updateLasers() {
+    this.lasers.forEach(l => {
+      if (l.warningTicks > 0) {
+        l.warningTicks--;
+      } else {
+        l.fireTicks--;
+      }
+    });
+    this.lasers = this.lasers.filter(l => l.fireTicks > 0);
+  }
+
+  // ── Attack C: Chaser ───────────────────────────────────
+  spawnChaser(targetX, targetY) {
+    this.chasers.push({
+      x: targetX,
+      y: targetY,
+      trackingTicks: 30,  // follows head for 30 ticks (~3s)
+      lockedIn: false,
+      explosionTicks: 0,
+    });
+  }
+
+  updateChasers(headX, headY) {
+    this.chasers.forEach(c => {
+      if (!c.lockedIn) {
+        // Follow the head
+        c.x = headX;
+        c.y = headY;
+        c.trackingTicks--;
+        if (c.trackingTicks <= 0) {
+          c.lockedIn = true;
+          c.explosionTicks = 5; // explodes for 5 ticks
+        }
+      } else {
+        c.explosionTicks--;
+      }
+    });
+    this.chasers = this.chasers.filter(c => !c.lockedIn || c.explosionTicks > 0);
+  }
+
+  // ── Collision checks against snake ─────────────────────
+  snakeHitByBullet(snake) {
+    return snake.body.some(seg =>
+      this.bullets.some(b => b.x === seg.x && b.y === seg.y)
+    );
+  }
+
+  snakeHitByLaser(snake) {
+    return this.lasers.some(l => {
+      if (l.warningTicks > 0) return false; // still warning
+      return snake.body.some(seg =>
+        l.isRow ? seg.y === l.index : seg.x === l.index
+      );
+    });
+  }
+
+  snakeHitByChaser(snake) {
+    return this.chasers.some(c => {
+      if (!c.lockedIn) return false; // only hurts after explosion
+      // 3x3 explosion zone centered on lock position
+      return snake.body.some(seg =>
+        seg.x >= c.x - 1 && seg.x <= c.x + 1 &&
+        seg.y >= c.y - 1 && seg.y <= c.y + 1
+      );
+    });
+  }
+
+  // ── Draw ───────────────────────────────────────────────
+  draw() {
+    // Rain bullets (small white dots)
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 6;
+    this.bullets.forEach(b => {
+      const cx = b.x * TILE + TILE / 2;
+      const cy = b.y * TILE + TILE / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+
+    // Lasers
+    this.lasers.forEach(l => {
+      if (l.warningTicks > 0) {
+        // Warning: flashing yellow highlight
+        const alpha = (l.warningTicks % 2 === 0) ? 0.15 : 0.3;
+        ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+      } else {
+        // Active: solid bright beam
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.8)';
+        ctx.shadowColor = '#ff3232';
+        ctx.shadowBlur = 15;
+      }
+      if (l.isRow) {
+        ctx.fillRect(0, l.index * TILE, canvas.width, TILE);
+      } else {
+        ctx.fillRect(l.index * TILE, 0, TILE, canvas.height);
+      }
+      ctx.shadowBlur = 0;
+    });
+
+    // Chasers
+    this.chasers.forEach(c => {
+      if (!c.lockedIn) {
+        // Tracking reticle: crosshair around position
+        const cx = c.x * TILE + TILE / 2;
+        const cy = c.y * TILE + TILE / 2;
+        ctx.strokeStyle = '#ffdd00';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ffdd00';
+        ctx.shadowBlur = 8;
+        // Circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, TILE, 0, Math.PI * 2);
+        ctx.stroke();
+        // Crosshair lines
+        ctx.beginPath();
+        ctx.moveTo(cx - TILE * 1.3, cy);
+        ctx.lineTo(cx + TILE * 1.3, cy);
+        ctx.moveTo(cx, cy - TILE * 1.3);
+        ctx.lineTo(cx, cy + TILE * 1.3);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 0;
+      } else {
+        // Explosion: 3x3 red zone
+        ctx.fillStyle = 'rgba(255, 100, 0, 0.7)';
+        ctx.shadowColor = '#ff6600';
+        ctx.shadowBlur = 20;
+        ctx.fillRect(
+          (c.x - 1) * TILE, (c.y - 1) * TILE,
+          3 * TILE, 3 * TILE
+        );
+        ctx.shadowBlur = 0;
+      }
+    });
+  }
+}
+
+// ============================================================
 // Game
 // ============================================================
 class Game {
@@ -227,6 +513,8 @@ class Game {
     this.shadow = new ShadowSnake();
     this.food = new Food();
     this.poison = new Food();
+    this.boss = new Boss();
+    this.projectiles = new ProjectileManager();
     this.score = 0;
     this.highScore = parseInt(localStorage.getItem('snakeHighScore')) || 0;
     this.running = false;
@@ -247,6 +535,10 @@ class Game {
     // Poison
     this.poisonActive = false;
 
+    // Boss fight
+    this.bossTickCounter = 0;
+    this.bossAttackCycle = 0;
+
     highscoreDisplay.textContent = `HI: ${this.highScore}`;
     this.bindEvents();
   }
@@ -255,14 +547,8 @@ class Game {
     document.addEventListener('keydown', (e) => {
       // R key – instant restart at any time
       if (e.key === 'r' || e.key === 'R') {
-        if (this.running || !startScreen.classList.contains('hidden')) {
-          // Only restart if a game has been started before or is running
-          if (!startScreen.classList.contains('hidden')) return;
-          this.startMode(this.currentMode);
-        } else {
-          // On game-over screen
-          this.startMode(this.currentMode);
-        }
+        if (!startScreen.classList.contains('hidden')) return;
+        this.startMode(this.currentMode);
         return;
       }
 
@@ -302,6 +588,8 @@ class Game {
     // Buttons
     restartBtn.addEventListener('click', () => this.startMode(this.currentMode));
     menuBtn.addEventListener('click', () => this.showMenu());
+    victoryRestartBtn.addEventListener('click', () => this.startMode(this.currentMode));
+    victoryMenuBtn.addEventListener('click', () => this.showMenu());
   }
 
   // ── Menu ───────────────────────────────────────────────────
@@ -324,6 +612,7 @@ class Game {
     timerDisplay.classList.add('hidden');
     startScreen.classList.remove('hidden');
     gameoverScreen.classList.add('hidden');
+    victoryScreen.classList.add('hidden');
   }
 
   // ── Start / Stop ──────────────────────────────────────────
@@ -365,6 +654,21 @@ class Game {
         this.shadow.mirror(this.snake.body);
         occupied.push(...this.shadow.body);
         break;
+      case 'bossfight':
+        this.boss.reset();
+        this.projectiles.reset();
+        this.bossTickCounter = 0;
+        this.bossAttackCycle = 0;
+        occupied.push(...this.boss.getOccupied());
+        // Move snake to bottom-center for boss fight
+        this.snake.body = [
+          { x: 10, y: 17 },
+          { x: 9,  y: 17 },
+          { x: 8,  y: 17 },
+        ];
+        this.snake.direction = DIR.RIGHT;
+        this.snake.nextDirection = DIR.RIGHT;
+        break;
     }
 
     this.food.spawn(occupied);
@@ -376,6 +680,7 @@ class Game {
     this.updateScoreUI();
     startScreen.classList.add('hidden');
     gameoverScreen.classList.add('hidden');
+    victoryScreen.classList.add('hidden');
 
     this.running = true;
     this.intervalId = setInterval(() => this.tick(), this.currentTickMs);
@@ -383,7 +688,7 @@ class Game {
 
   // ── Maze helpers ──────────────────────────────────────────
   generateMazeWalls() {
-    const count = 5 + Math.floor(Math.random() * 6); // 5-10 walls
+    const count = 5 + Math.floor(Math.random() * 6);
     const snakeOccupied = this.snake.body;
     this.walls = [];
     for (let i = 0; i < count; i++) {
@@ -396,7 +701,6 @@ class Game {
       } while (
         snakeOccupied.some(s => s.x === pos.x && s.y === pos.y) ||
         this.walls.some(w => w.x === pos.x && w.y === pos.y) ||
-        // Keep a 2-tile buffer around the snake head
         (Math.abs(pos.x - snakeOccupied[0].x) <= 2 && Math.abs(pos.y - snakeOccupied[0].y) <= 2)
       );
       this.walls.push(pos);
@@ -410,59 +714,42 @@ class Game {
     this.poisonActive = true;
   }
 
+  // ── Boss fight: spawn orb avoiding boss area ──────────────
+  spawnBossOrb() {
+    const occupied = [...this.snake.body, ...this.boss.getOccupied()];
+    this.food.spawn(occupied);
+  }
+
   // ── Tick ──────────────────────────────────────────────────
   tick() {
     const mode = this.currentMode;
-    const wrapAround = (mode === 'portal' || mode === 'twin');
 
+    if (mode === 'bossfight') {
+      this.tickBoss();
+      return;
+    }
+
+    const wrapAround = (mode === 'portal' || mode === 'twin');
     this.snake.update(wrapAround);
 
-    // Twin mode: update shadow
-    if (mode === 'twin') {
-      this.shadow.mirror(this.snake.body);
-    }
+    if (mode === 'twin') this.shadow.mirror(this.snake.body);
 
-    // Wall collision (skip for wrap-around modes)
-    if (!wrapAround && this.snake.collidesWall()) {
-      this.gameOver();
-      return;
-    }
+    if (!wrapAround && this.snake.collidesWall()) { this.gameOver(); return; }
+    if (this.snake.collidesSelf()) { this.gameOver(); return; }
+    if (mode === 'maze' && this.walls.some(w => this.snake.collidesPoint(w))) { this.gameOver(); return; }
+    if (mode === 'twin' && this.snake.collidesBody(this.shadow.body)) { this.gameOver(); return; }
 
-    // Self collision
-    if (this.snake.collidesSelf()) {
-      this.gameOver();
-      return;
-    }
-
-    // Maze wall collision
-    if (mode === 'maze' && this.walls.some(w => this.snake.collidesPoint(w))) {
-      this.gameOver();
-      return;
-    }
-
-    // Twin mode: collision with shadow
-    if (mode === 'twin' && this.snake.collidesBody(this.shadow.body)) {
-      this.gameOver();
-      return;
-    }
-
-    // Food eating
     const head = this.snake.body[0];
     if (head.x === this.food.position.x && head.y === this.food.position.y) {
       this.snake.grow();
       this.score += 10;
 
-      // Speedster: increase speed by 5%
       if (mode === 'speedster') {
         this.currentTickMs *= 0.95;
         clearInterval(this.intervalId);
         this.intervalId = setInterval(() => this.tick(), this.currentTickMs);
       }
-
-      // Time Attack: add 3 seconds
-      if (mode === 'timeattack') {
-        this.timeLeft += 3;
-      }
+      if (mode === 'timeattack') this.timeLeft += 3;
 
       this.updateScoreUI();
       const occupied = [...this.snake.body, ...this.walls];
@@ -470,13 +757,11 @@ class Game {
       if (mode === 'poison' && this.poisonActive) occupied.push(this.poison.position);
       this.food.spawn(occupied);
 
-      // Poison mode: re-spawn poison sometimes
       if (mode === 'poison' && (!this.poisonActive || Math.random() < 0.5)) {
         this.spawnPoison();
       }
     }
 
-    // Poison eating
     if (mode === 'poison' && this.poisonActive &&
         head.x === this.poison.position.x && head.y === this.poison.position.y) {
       this.gameOver();
@@ -486,48 +771,117 @@ class Game {
     this.render();
   }
 
-  // ── Render ────────────────────────────────────────────────
+  // ── Boss Fight Tick ───────────────────────────────────────
+  tickBoss() {
+    this.snake.update(false);
+    this.boss.update();
+    this.bossTickCounter++;
+
+    // Wall / self collision
+    if (this.snake.collidesWall() || this.snake.collidesSelf()) {
+      this.gameOver();
+      return;
+    }
+
+    // Collision with boss body
+    if (this.snake.collidesRect(this.boss.x, this.boss.y, this.boss.size, this.boss.size)) {
+      this.gameOver();
+      return;
+    }
+
+    // Update projectiles
+    this.projectiles.updateBullets();
+    this.projectiles.updateLasers();
+    const head = this.snake.body[0];
+    this.projectiles.updateChasers(head.x, head.y);
+
+    // Check projectile hits
+    if (this.projectiles.snakeHitByBullet(this.snake) ||
+        this.projectiles.snakeHitByLaser(this.snake) ||
+        this.projectiles.snakeHitByChaser(this.snake)) {
+      this.gameOver();
+      return;
+    }
+
+    // Boss attack cycle – fire attacks every 15 ticks (~1.5s)
+    if (this.bossTickCounter % 15 === 0) {
+      const phase = this.bossAttackCycle % 3;
+      switch (phase) {
+        case 0: this.projectiles.spawnRain(); break;
+        case 1: this.projectiles.spawnLaser(); break;
+        case 2: this.projectiles.spawnChaser(head.x, head.y); break;
+      }
+      this.bossAttackCycle++;
+    }
+
+    // Also spawn rain more frequently for variety
+    if (this.bossTickCounter % 8 === 0 && this.boss.hp <= 3) {
+      this.projectiles.spawnRain();
+    }
+
+    // Eating orb = damage boss
+    if (head.x === this.food.position.x && head.y === this.food.position.y) {
+      this.snake.grow();
+      this.boss.takeDamage();
+      this.score += 10;
+      this.updateScoreUI();
+
+      if (this.boss.hp <= 0) {
+        this.victory();
+        return;
+      }
+
+      this.spawnBossOrb();
+    }
+
+    this.renderBoss();
+  }
+
+  // ── Render (normal modes) ─────────────────────────────────
   render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Grid lines
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     for (let i = 0; i <= GRID_SIZE; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * TILE, 0);
-      ctx.lineTo(i * TILE, canvas.height);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * TILE);
-      ctx.lineTo(canvas.width, i * TILE);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * TILE); ctx.lineTo(canvas.width, i * TILE); ctx.stroke();
     }
 
-    // Maze walls
     if (this.currentMode === 'maze') {
-      ctx.shadowColor = '#666';
-      ctx.shadowBlur = 4;
-      ctx.fillStyle = '#555555';
-      this.walls.forEach(w => {
-        ctx.fillRect(w.x * TILE + 1, w.y * TILE + 1, TILE - 2, TILE - 2);
-      });
+      ctx.shadowColor = '#666'; ctx.shadowBlur = 4; ctx.fillStyle = '#555555';
+      this.walls.forEach(w => ctx.fillRect(w.x * TILE + 1, w.y * TILE + 1, TILE - 2, TILE - 2));
       ctx.shadowBlur = 0;
     }
 
-    // Food
     this.food.draw();
 
-    // Poison
-    if (this.currentMode === 'poison' && this.poisonActive) {
-      this.poison.draw('#aa00ff');
+    if (this.currentMode === 'poison' && this.poisonActive) this.poison.draw('#aa00ff');
+    if (this.currentMode === 'twin') this.shadow.draw();
+
+    this.snake.draw();
+  }
+
+  // ── Render (boss fight) ───────────────────────────────────
+  renderBoss() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dark grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      ctx.beginPath(); ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * TILE); ctx.lineTo(canvas.width, i * TILE); ctx.stroke();
     }
 
-    // Shadow snake (twin mode)
-    if (this.currentMode === 'twin') {
-      this.shadow.draw();
-    }
+    // Projectiles (draw behind boss/snake)
+    this.projectiles.draw();
 
-    // Player snake
+    // Boss
+    this.boss.draw();
+
+    // Orb (cyan to distinguish from normal food)
+    this.food.draw('#00ffff');
+
+    // Player
     this.snake.draw();
   }
 
@@ -546,6 +900,18 @@ class Game {
 
     finalScoreText.textContent = `SCORE: ${this.score}`;
     gameoverScreen.classList.remove('hidden');
+  }
+
+  victory() {
+    this.stop();
+
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      localStorage.setItem('snakeHighScore', this.highScore);
+      highscoreDisplay.textContent = `HI: ${this.highScore}`;
+    }
+
+    victoryScreen.classList.remove('hidden');
   }
 }
 
